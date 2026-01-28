@@ -1,7 +1,12 @@
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 
-app = FastAPI()
+from app.infrastructure.config.settings import get_settings
+from app.presentation.http.routes.health_routes import router as health_router
 
-@app.get("/")
-def read_root():
-    return {"message": "API Server is running"}
+settings = get_settings()
+
+app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION)
+
+api_router = APIRouter(prefix="/api")
+api_router.include_router(health_router)
+app.include_router(api_router)
