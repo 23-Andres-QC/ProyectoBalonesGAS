@@ -332,7 +332,8 @@ def run_service(settings) -> None:
     )
     from app.infrastructure.stores.in_memory_frame_store import InMemoryFrameStore
     from app.infrastructure.stores.in_memory_metrics_store import InMemoryMetricsStore
-    from app.infrastructure.tracking.bytetrack_tracker import ByteTrackTracker
+    # Note: ByteTrackTracker not implemented yet
+    # from app.infrastructure.tracking.bytetrack_tracker import ByteTrackTracker
     from app.presentation.http.app_factory import create_app
     
     print("=" * 50)
@@ -371,7 +372,8 @@ def run_service(settings) -> None:
         conf_thres=settings.conf_thres,
     )
     
-    tracker = ByteTrackTracker()
+    # Note: ByteTrackTracker not implemented yet (raises NotImplementedError)
+    # tracker = ByteTrackTracker()
     
     counter = VisibleWindowCounter(
         window=settings.count_window,
@@ -394,7 +396,7 @@ def run_service(settings) -> None:
         renderer=renderer,
         frame_store=frame_store,
         metrics_store=metrics_store,
-        tracker=tracker,
+        tracker=None,  # Tracker not implemented yet (ByteTrackTracker raises NotImplementedError)
         jpeg_quality=settings.jpeg_quality,
         sleep_sec=settings.pipeline_sleep_sec,
         max_consecutive_fails=settings.pipeline_max_consecutive_fails,

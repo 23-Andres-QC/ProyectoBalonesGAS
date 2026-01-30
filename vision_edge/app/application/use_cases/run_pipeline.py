@@ -73,9 +73,12 @@ class RunPipeline:
                 # Detect
                 detections = self.detector.detect(frame)
                 
-                # Track (optional)
+                # Track (optional) - skip if tracker raises NotImplementedError
                 if self.tracker:
-                    detections = self.tracker.track(frame, detections)
+                    try:
+                        detections = self.tracker.update(detections)
+                    except NotImplementedError:
+                        pass  # Tracker not implemented yet, use raw detections
                 
                 # Count
                 count_state = self.counter.update(detections)
