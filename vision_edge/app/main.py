@@ -1,4 +1,7 @@
 import time
+import os
+
+import cv2
 
 from app.infrastructure.camera.rtsp_opencv_source import RtspOpenCvSource
 from app.infrastructure.config.settings import get_settings
@@ -200,6 +203,116 @@ def run_counter_test(settings) -> None:
         print("=" * 50)
 
 
+def run_render_test(settings) -> None:
+    """HU-VIS-04: Test renderer with YOLO detector, counter, and overlay."""
+    from app.infrastructure.inference.yolo_ultralytics_detector import (
+        YoloUltralyticsDetector,
+    )
+    from app.infrastructure.counting.visible_window_counter import (
+        VisibleWindowCounter,
+    )
+    from app.infrastructure.rendering.supervision_overlay_renderer import (
+        SupervisionOverlayRenderer,
+    )
+
+    print("=" * 50)
+    print("Vision Edge - Render Test Mode (HU-VIS-04)")
+    print("=" * 50)
+    print(f"RTSP_URL: {settings.rtsp_url}")
+    print(f"MODEL_PATH: {settings.model_path}")
+    print(f"CONF_THRES: {settings.conf_thres}")
+    print(f"COUNT_WINDOW: {settings.count_window}")
+    print(f"STABLE_MODE: {settings.stable_mode}")
+    print(f"RENDER_SHOW_LABELS: {settings.render_show_labels}")
+    print(f"RENDER_SHOW_RAW: {settings.render_show_raw}")
+    print("=" * 50)
+
+    # Create outputs directory if not exists
+    output_dir = "outputs"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"[OUTPUT] Created directory: {output_dir}")
+
+    frame_source = RtspOpenCvSource(
+        rtsp_url=settings.rtsp_url,
+        reconnect_sec=settings.rtsp_reconnect_sec,
+        max_fails_before_reopen=settings.rtsp_max_fails_before_reopen,
+        open_timeout_sec=settings.rtsp_open_timeout_sec,
+    )
+
+    detector = YoloUltralyticsDetector(
+        model_path=settings.model_path, conf_thres=settings.conf_thres
+    )
+
+    counter = VisibleWindowCounter(
+        window=settings.count_window, stable_mode=settings.stable_mode
+    )
+
+    renderer = SupervisionOverlayRenderer(
+        show_labels=settings.render_show_labels,
+        show_raw=settings.render_show_raw,
+        text_scale=settings.render_text_scale,
+        text_thickness=settings.render_text_thickness,
+        box_thickness=settings.render_box_thickness,
+    )
+
+    frames_processed = 0
+    start_time = time.time()
+    max_frames = 30
+    save_frames = [10, 20, 30]  # Save these frame numbers
+
+    try:
+        for i in range(max_frames):
+            frame = frame_source.read()
+            if frame is None:
+                continue
+
+            # Detect objects
+            detections = detector.detect(frame)
+
+            # Update counter
+            state = counter.update(detections)
+
+            # Render processed frame
+            processed = renderer.render(frame, detections, state)
+
+            frames_processed += 1
+
+            # Save specific frames to disk
+            if (i + 1) in save_frames:
+                raw_path = os.path.join(output_dir, f"raw_{i+1}.jpg")
+                processed_path = os.path.join(output_dir, f"processed_{i+1}.jpg")
+                
+                cv2.imwrite(raw_path, frame)
+                cv2.imwrite(processed_path, processed)
+                
+                print(f"[SAVED] Frame {i+1}: {raw_path} and {processed_path}")
+
+            # Log progress
+            if (i + 1) % 10 == 0:
+                elapsed = time.time() - start_time
+                fps = frames_processed / elapsed if elapsed > 0 else 0
+                print(
+                    f"[{i+1}/{max_frames}] Raw={state.raw_count}, "
+                    f"Stable={state.stable_count}, FPS={fps:.1f}"
+                )
+
+            time.sleep(0.03)
+
+    except KeyboardInterrupt:
+        print("\n[INTERRUPTED] Stopping...")
+    finally:
+        frame_source.close()
+        elapsed = time.time() - start_time
+        fps = frames_processed / elapsed if elapsed > 0 else 0
+        print("=" * 50)
+        print(f"Total frames processed: {frames_processed}")
+        print(f"Average FPS: {fps:.2f}")
+        print(f"Elapsed time: {elapsed:.2f}s")
+        print(f"Output images saved in: {output_dir}/")
+        print("=" * 50)
+
+
 def main() -> None:
     settings = get_settings()
 
@@ -207,6 +320,8 @@ def main() -> None:
         run_detector_test(settings)
     elif settings.vision_mode == "counter_test":
         run_counter_test(settings)
+    elif settings.vision_mode == "render_test":
+        run_render_test(settings)
     else:
         run_rtsp_test(settings)
 

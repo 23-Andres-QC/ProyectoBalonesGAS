@@ -13,6 +13,11 @@ class Settings:
 	jpeg_quality: int
 	count_window: int
 	stable_mode: str
+	render_show_labels: bool
+	render_show_raw: bool
+	render_text_scale: float
+	render_text_thickness: int
+	render_box_thickness: int
 	vision_mode: str
 
 
@@ -27,5 +32,10 @@ def get_settings() -> Settings:
 		jpeg_quality=int(os.getenv("JPEG_QUALITY", "80")),
 		count_window=int(os.getenv("COUNT_WINDOW", "15")),
 		stable_mode=os.getenv("STABLE_MODE", "median"),
+		render_show_labels=os.getenv("RENDER_SHOW_LABELS", "1") == "1",
+		render_show_raw=os.getenv("RENDER_SHOW_RAW", "0") == "1",
+		render_text_scale=float(os.getenv("RENDER_TEXT_SCALE", "1.0")),
+		render_text_thickness=int(os.getenv("RENDER_TEXT_THICKNESS", "2")),
+		render_box_thickness=int(os.getenv("RENDER_BOX_THICKNESS", "2")),
 		vision_mode=os.getenv("VISION_MODE", "rtsp_test"),
 	)
