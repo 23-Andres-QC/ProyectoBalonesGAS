@@ -12,6 +12,7 @@ class Settings:
 	conf_thres: float
 	jpeg_quality: int
 	count_window: int
+	vision_mode: str
 
 
 def get_settings() -> Settings:
@@ -24,4 +25,5 @@ def get_settings() -> Settings:
 		conf_thres=float(os.getenv("CONF_THRES", "0.5")),
 		jpeg_quality=int(os.getenv("JPEG_QUALITY", "80")),
 		count_window=int(os.getenv("COUNT_WINDOW", "15")),
+		vision_mode=os.getenv("VISION_MODE", "rtsp_test"),
 	)

@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Iterable
 
-from app.domain.entities.detection import Detection
+import numpy as np
+import supervision as sv
 
 
 class Detector(ABC):
 	@abstractmethod
-	def detect(self, frame_bgr: "object") -> Iterable[Detection]:
-		"""Return detections for a frame."""
+	def detect(self, frame: np.ndarray) -> sv.Detections:
+		"""Return detections for a frame (BGR numpy array)."""
 		raise NotImplementedError
