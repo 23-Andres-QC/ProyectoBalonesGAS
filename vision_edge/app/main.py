@@ -380,7 +380,7 @@ def run_service(settings) -> None:
     
     renderer = SupervisionOverlayRenderer(
         show_labels=settings.render_show_labels,
-        show_raw_count=settings.render_show_raw,
+        show_raw=settings.render_show_raw,
         text_scale=settings.render_text_scale,
         text_thickness=settings.render_text_thickness,
         box_thickness=settings.render_box_thickness,
