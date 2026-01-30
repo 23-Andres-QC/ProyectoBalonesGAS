@@ -313,10 +313,118 @@ def run_render_test(settings) -> None:
         print("=" * 50)
 
 
+def run_service(settings) -> None:
+    """HU-VIS-05: Run FastAPI HTTP service with background pipeline."""
+    import threading
+    
+    import uvicorn
+    
+    from app.application.use_cases.run_pipeline import RunPipeline
+    from app.infrastructure.camera.rtsp_opencv_source import RtspOpenCvSource
+    from app.infrastructure.counting.visible_window_counter import (
+        VisibleWindowCounter,
+    )
+    from app.infrastructure.inference.yolo_ultralytics_detector import (
+        YoloUltralyticsDetector,
+    )
+    from app.infrastructure.rendering.supervision_overlay_renderer import (
+        SupervisionOverlayRenderer,
+    )
+    from app.infrastructure.stores.in_memory_frame_store import InMemoryFrameStore
+    from app.infrastructure.stores.in_memory_metrics_store import InMemoryMetricsStore
+    from app.infrastructure.tracking.bytetrack_tracker import ByteTrackTracker
+    from app.presentation.http.app_factory import create_app
+    
+    print("=" * 50)
+    print("Vision Edge - HTTP Service Mode (HU-VIS-05)")
+    print("=" * 50)
+    print(f"API Host: {settings.api_host}")
+    print(f"API Port: {settings.api_port}")
+    print(f"API Version: {settings.api_version}")
+    print(f"RTSP URL: {settings.rtsp_url}")
+    print(f"Model: {settings.model_path}")
+    print(f"Pipeline Sleep: {settings.pipeline_sleep_sec}s (~{1/settings.pipeline_sleep_sec:.0f} FPS)")
+    print("=" * 50)
+    
+    # Initialize stores
+    frame_store = InMemoryFrameStore()
+    metrics_store = InMemoryMetricsStore()
+    
+    # Create FastAPI app
+    app = create_app(
+        service_name="vision_edge",
+        version=settings.api_version,
+        frame_store=frame_store,
+        metrics_store=metrics_store,
+    )
+    
+    # Initialize pipeline components
+    frame_source = RtspOpenCvSource(
+        rtsp_url=settings.rtsp_url,
+        reconnect_sec=settings.rtsp_reconnect_sec,
+        max_fails_before_reopen=settings.rtsp_max_fails_before_reopen,
+        open_timeout_sec=settings.rtsp_open_timeout_sec,
+    )
+    
+    detector = YoloUltralyticsDetector(
+        model_path=settings.model_path,
+        conf_thres=settings.conf_thres,
+    )
+    
+    tracker = ByteTrackTracker()
+    
+    counter = VisibleWindowCounter(
+        window=settings.count_window,
+        stable_mode=settings.stable_mode,
+    )
+    
+    renderer = SupervisionOverlayRenderer(
+        show_labels=settings.render_show_labels,
+        show_raw_count=settings.render_show_raw,
+        text_scale=settings.render_text_scale,
+        text_thickness=settings.render_text_thickness,
+        box_thickness=settings.render_box_thickness,
+    )
+    
+    # Create pipeline
+    pipeline = RunPipeline(
+        frame_source=frame_source,
+        detector=detector,
+        counter=counter,
+        renderer=renderer,
+        frame_store=frame_store,
+        metrics_store=metrics_store,
+        tracker=tracker,
+        jpeg_quality=settings.jpeg_quality,
+        sleep_sec=settings.pipeline_sleep_sec,
+        max_consecutive_fails=settings.pipeline_max_consecutive_fails,
+    )
+    
+    # Start pipeline in background thread
+    pipeline_thread = threading.Thread(
+        target=pipeline.run_continuous,
+        daemon=True,
+        name="PipelineThread",
+    )
+    pipeline_thread.start()
+    print("[Service] Pipeline thread started")
+    
+    # Start FastAPI server (blocking)
+    print(f"[Service] Starting FastAPI server on {settings.api_host}:{settings.api_port}")
+    uvicorn.run(
+        app,
+        host=settings.api_host,
+        port=settings.api_port,
+        log_level="info",
+    )
+
+
 def main() -> None:
     settings = get_settings()
 
-    if settings.vision_mode == "detector_test":
+    if settings.vision_mode == "service":
+        run_service(settings)
+    elif settings.vision_mode == "detector_test":
         run_detector_test(settings)
     elif settings.vision_mode == "counter_test":
         run_counter_test(settings)

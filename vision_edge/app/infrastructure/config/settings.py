@@ -19,6 +19,12 @@ class Settings:
 	render_text_thickness: int
 	render_box_thickness: int
 	vision_mode: str
+	# HU-VIS-05: HTTP Service
+	api_host: str
+	api_port: int
+	api_version: str
+	pipeline_sleep_sec: float
+	pipeline_max_consecutive_fails: int
 
 
 def get_settings() -> Settings:
@@ -38,4 +44,10 @@ def get_settings() -> Settings:
 		render_text_thickness=int(os.getenv("RENDER_TEXT_THICKNESS", "2")),
 		render_box_thickness=int(os.getenv("RENDER_BOX_THICKNESS", "2")),
 		vision_mode=os.getenv("VISION_MODE", "rtsp_test"),
+		# HU-VIS-05: HTTP Service
+		api_host=os.getenv("API_HOST", "127.0.0.1"),
+		api_port=int(os.getenv("API_PORT", "8010")),
+		api_version=os.getenv("API_VERSION", "0.1.0"),
+		pipeline_sleep_sec=float(os.getenv("PIPELINE_SLEEP_SEC", "0.033")),  # ~30 FPS
+		pipeline_max_consecutive_fails=int(os.getenv("PIPELINE_MAX_CONSECUTIVE_FAILS", "50")),
 	)
