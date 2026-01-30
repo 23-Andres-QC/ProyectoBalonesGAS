@@ -25,6 +25,12 @@ class Settings:
 	api_version: str
 	pipeline_sleep_sec: float
 	pipeline_max_consecutive_fails: int
+	# HU-VIS-06: Line Crossing Counter
+	line_y: int
+	line_thickness: int
+	line_text_scale: float
+	# HU-VIS-07: MJPEG Streaming
+	stream_fps: int
 
 
 def get_settings() -> Settings:
@@ -50,4 +56,10 @@ def get_settings() -> Settings:
 		api_version=os.getenv("API_VERSION", "0.1.0"),
 		pipeline_sleep_sec=float(os.getenv("PIPELINE_SLEEP_SEC", "0.033")),  # ~30 FPS
 		pipeline_max_consecutive_fails=int(os.getenv("PIPELINE_MAX_CONSECUTIVE_FAILS", "50")),
+		# HU-VIS-06: Line Crossing Counter
+		line_y=int(os.getenv("LINE_Y", "450")),
+		line_thickness=int(os.getenv("LINE_THICKNESS", "2")),
+		line_text_scale=float(os.getenv("LINE_TEXT_SCALE", "0.6")),
+		# HU-VIS-07: MJPEG Streaming
+		stream_fps=int(os.getenv("STREAM_FPS", "15")),
 	)

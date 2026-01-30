@@ -337,7 +337,7 @@ def run_service(settings) -> None:
     from app.presentation.http.app_factory import create_app
     
     print("=" * 50)
-    print("Vision Edge - HTTP Service Mode (HU-VIS-05)")
+    print("Vision Edge - HTTP Service Mode (HU-VIS-05, HU-VIS-06v, HU-VIS-07)")
     print("=" * 50)
     print(f"API Host: {settings.api_host}")
     print(f"API Port: {settings.api_port}")
@@ -345,18 +345,21 @@ def run_service(settings) -> None:
     print(f"RTSP URL: {settings.rtsp_url}")
     print(f"Model: {settings.model_path}")
     print(f"Pipeline Sleep: {settings.pipeline_sleep_sec}s (~{1/settings.pipeline_sleep_sec:.0f} FPS)")
+    print(f"Line Y: {settings.line_y} (HU-VIS-06v)")
+    print(f"Stream FPS: {settings.stream_fps} (HU-VIS-07)")
     print("=" * 50)
     
     # Initialize stores
     frame_store = InMemoryFrameStore()
     metrics_store = InMemoryMetricsStore()
     
-    # Create FastAPI app
+    # Create FastAPI app (HU-VIS-07: pass settings for stream_fps)
     app = create_app(
         service_name="vision_edge",
         version=settings.api_version,
         frame_store=frame_store,
         metrics_store=metrics_store,
+        settings=settings,
     )
     
     # Initialize pipeline components
@@ -386,9 +389,12 @@ def run_service(settings) -> None:
         text_scale=settings.render_text_scale,
         text_thickness=settings.render_text_thickness,
         box_thickness=settings.render_box_thickness,
+        line_y=settings.line_y,
+        line_thickness=settings.line_thickness,
+        line_text_scale=settings.line_text_scale,
     )
     
-    # Create pipeline
+    # Create pipeline (HU-VIS-06v: line config passed inline, no line_counter port)
     pipeline = RunPipeline(
         frame_source=frame_source,
         detector=detector,
@@ -397,6 +403,9 @@ def run_service(settings) -> None:
         frame_store=frame_store,
         metrics_store=metrics_store,
         tracker=None,  # Tracker not implemented yet (ByteTrackTracker raises NotImplementedError)
+        line_y=settings.line_y,
+        line_thickness=settings.line_thickness,
+        line_text_scale=settings.line_text_scale,
         jpeg_quality=settings.jpeg_quality,
         sleep_sec=settings.pipeline_sleep_sec,
         max_consecutive_fails=settings.pipeline_max_consecutive_fails,
