@@ -124,11 +124,89 @@ def run_detector_test(settings) -> None:
         print("=" * 50)
 
 
+def run_counter_test(settings) -> None:
+    """HU-VIS-03: Test counter with YOLO detector and stabilization."""
+    from app.infrastructure.inference.yolo_ultralytics_detector import (
+        YoloUltralyticsDetector,
+    )
+    from app.infrastructure.counting.visible_window_counter import (
+        VisibleWindowCounter,
+    )
+
+    print("=" * 50)
+    print("Vision Edge - Counter Test Mode (HU-VIS-03)")
+    print("=" * 50)
+    print(f"RTSP_URL: {settings.rtsp_url}")
+    print(f"MODEL_PATH: {settings.model_path}")
+    print(f"CONF_THRES: {settings.conf_thres}")
+    print(f"COUNT_WINDOW: {settings.count_window}")
+    print(f"STABLE_MODE: {settings.stable_mode}")
+    print("=" * 50)
+
+    frame_source = RtspOpenCvSource(
+        rtsp_url=settings.rtsp_url,
+        reconnect_sec=settings.rtsp_reconnect_sec,
+        max_fails_before_reopen=settings.rtsp_max_fails_before_reopen,
+        open_timeout_sec=settings.rtsp_open_timeout_sec,
+    )
+
+    detector = YoloUltralyticsDetector(
+        model_path=settings.model_path, conf_thres=settings.conf_thres
+    )
+
+    counter = VisibleWindowCounter(
+        window=settings.count_window, stable_mode=settings.stable_mode
+    )
+
+    frames_processed = 0
+    start_time = time.time()
+    max_frames = 80
+
+    try:
+        for i in range(max_frames):
+            frame = frame_source.read()
+            if frame is None:
+                continue
+
+            # Detect objects
+            detections = detector.detect(frame)
+
+            # Update counter
+            state = counter.update(detections)
+
+            frames_processed += 1
+
+            if (i + 1) % 10 == 0:
+                elapsed = time.time() - start_time
+                fps = frames_processed / elapsed if elapsed > 0 else 0
+                print(
+                    f"[{i+1}/{max_frames}] Raw={state.raw_count}, "
+                    f"Stable={state.stable_count}, Window={state.window_size}, "
+                    f"FPS={fps:.1f}"
+                )
+
+            time.sleep(0.03)
+
+    except KeyboardInterrupt:
+        print("\n[INTERRUPTED] Stopping...")
+    finally:
+        frame_source.close()
+        elapsed = time.time() - start_time
+        fps = frames_processed / elapsed if elapsed > 0 else 0
+        print("=" * 50)
+        print(f"Total frames processed: {frames_processed}")
+        print(f"Average FPS: {fps:.2f}")
+        print(f"Elapsed time: {elapsed:.2f}s")
+        print("=" * 50)
+
+
 def main() -> None:
     settings = get_settings()
 
     if settings.vision_mode == "detector_test":
         run_detector_test(settings)
+    elif settings.vision_mode == "counter_test":
+        run_counter_test(settings)
     else:
         run_rtsp_test(settings)
 
