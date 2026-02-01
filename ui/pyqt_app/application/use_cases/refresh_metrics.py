@@ -11,4 +11,4 @@ class RefreshMetrics:
         metrics = self.backend_client.get_metrics()
         # Assuming metrics format is {'count': X, ...} or similar. 
         # Adapting to whatever the backend provides.
-        return metrics.get("conteo_balones", 0)
+        return metrics.get("count", 0)
