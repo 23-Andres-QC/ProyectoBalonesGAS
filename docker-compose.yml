@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  api_server:
+    build: ./api_server
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - app_network
+
+  vision_edge:
+    build: ./vision_edge
+    depends_on:
+      - mongo
+      - redis
+      - api_server
+    networks:
+      - app_network
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app_network
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+
+volumes:
+  mongo_data:
+
+networks:
+  app_network:
+    driver: bridge

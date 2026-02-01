@@ -1,6 +1,9 @@
 opencv-python
 ultralytics
+supervision
 numpy
 motor
 redis
 ffmpeg-python
+fastapi
+uvicorn
