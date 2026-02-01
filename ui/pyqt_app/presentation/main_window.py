@@ -1,14 +1,17 @@
 import sys
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, QThread
+from PyQt5.QtGui import QPixmap
 
 from pyqt_app.presentation.widgets.video_panel import VideoPanel
 from pyqt_app.presentation.widgets.counter_panel import CounterPanel
+from pyqt_app.presentation.workers.mjpeg_worker import MjpegWorker
 
-from pyqt_app.application.use_cases.refresh_frames import RefreshFrames
 from pyqt_app.application.use_cases.refresh_metrics import RefreshMetrics
 from pyqt_app.application.use_cases.switch_view import SwitchView
 from pyqt_app.infrastructure.api.fastapi_client import FastApiClient
+from pyqt_app.infrastructure.config import StreamConfig
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -16,11 +19,18 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Sistema de Conteo de Balones - Costa Gas")
         self.resize(800, 600)
 
-        # Dependencies
-        self.client = FastApiClient(base_url="http://localhost:8000")
-        self.uc_refresh_frames = RefreshFrames(self.client)
+        # Dependencies for metrics (keep existing API client)
+        self.client = FastApiClient(base_url=StreamConfig.BACKEND_BASE_URL)
         self.uc_refresh_metrics = RefreshMetrics(self.client)
         self.uc_switch_view = SwitchView()
+
+        # Streaming state
+        self.current_thread = None
+        self.current_worker = None
+        self.current_stream_url = None
+        
+        # Backend failure tracking
+        self.backend_fail_streak = 0
 
         # UI Components
         self.central_widget = QWidget()
@@ -42,30 +52,127 @@ class MainWindow(QMainWindow):
         self.counter_panel = CounterPanel()
         self.main_layout.addWidget(self.counter_panel)
 
-        # Timers
-        self.frame_timer = QTimer()
-        self.frame_timer.timeout.connect(self.update_frame)
-        self.frame_timer.start(100) # 100-200ms
-
+        # Timer for metrics only (streaming handles frames)
         self.metrics_timer = QTimer()
         self.metrics_timer.timeout.connect(self.update_metrics)
-        self.metrics_timer.start(500) # 300-800ms
+        self.metrics_timer.start(1000)  # 1 segundo
         
-        # Initial state
+        # Initial state - start streaming
         self.on_tab_changed(0)
 
     def on_tab_changed(self, index):
+        """Cambia el stream cuando se cambia de tab."""
         mode = "raw" if index == 0 else "processed"
         self.uc_switch_view.execute(mode)
-        # Update title or visual indicator if needed
         self.video_panel.label_title.setText(f"Vista: {mode.capitalize()}")
+        
+        # Detener stream anterior y arrancar el nuevo
+        self.stop_stream()
+        self.start_stream(mode)
 
-    def update_frame(self):
-        mode = self.uc_switch_view.current_mode
-        pixmap = self.uc_refresh_frames.execute(mode)
-        if not pixmap.isNull():
-            self.video_panel.update_image(pixmap)
+    def start_stream(self, mode: str):
+        """Inicia un nuevo stream MJPEG en un thread separado."""
+        # Determinar URL según modo
+        url = StreamConfig.STREAM_RAW_URL if mode == "raw" else StreamConfig.STREAM_PROCESSED_URL
+        self.current_stream_url = url
+        
+        # Crear worker y thread
+        self.current_worker = MjpegWorker(url, StreamConfig.STREAM_TIMEOUT_SEC)
+        self.current_thread = QThread()
+        
+        # Mover worker al thread
+        self.current_worker.moveToThread(self.current_thread)
+        
+        # Conectar signals
+        self.current_worker.frame_ready.connect(self.on_frame_received)
+        self.current_worker.status.connect(self.on_stream_status)
+        self.current_worker.error.connect(self.on_stream_error)
+        
+        # Cuando termine el worker, cerrar el thread
+        self.current_worker.finished.connect(self.current_thread.quit)
+        
+        # Limpieza Qt automática (evita leaks)
+        self.current_worker.finished.connect(self.current_worker.deleteLater)
+        self.current_thread.finished.connect(self.current_thread.deleteLater)
+        
+        self.current_thread.started.connect(self.current_worker.run)
+        
+        # Iniciar thread
+        self.current_thread.start()
+    
+    def stop_stream(self):
+        """Detiene el stream actual de forma segura."""
+        if self.current_worker:
+            self.current_worker.stop()
+        
+        if self.current_thread:
+            try:
+                if self.current_thread.isRunning():
+                    self.current_thread.quit()
+                    self.current_thread.wait(2000)  # Esperar máximo 2 segundos
+            except RuntimeError:
+                # Thread ya fue eliminado por deleteLater, es OK
+                pass
+            
+        self.current_worker = None
+        self.current_thread = None
+        self.current_stream_url = None
+    
+    def on_frame_received(self, image):
+        """
+        Callback cuando llega un nuevo frame del stream.
+        Convierte QImage a QPixmap en el GUI thread (thread-safe).
+        """
+        pixmap = QPixmap.fromImage(image)
+        self.video_panel.update_image(pixmap)
+    
+    def on_stream_status(self, message: str):
+        """Callback para mensajes de estado del stream."""
+        if "Connecting" in message:
+            self.video_panel.show_message(f"🔄 {message}", is_error=False)
+    
+    def on_stream_error(self, error_message: str):
+        """Callback cuando hay un error en el stream."""
+        # Determinar si es error de VisionEdge
+        if "Connection error" in error_message or "Timeout" in error_message:
+            # Mostrar error con URL real del stream
+            self.video_panel.show_connection_error("VisionEdge", self.current_stream_url or "")
+        else:
+            self.video_panel.show_message(error_message, is_error=True)
 
     def update_metrics(self):
-        count = self.uc_refresh_metrics.execute()
-        self.counter_panel.update_count(count)
+        """
+        Actualiza las métricas desde el backend API.
+        Maneja streak de fallos para mostrar 🔴 solo después de 3 fallos consecutivos.
+        """
+        try:
+            count = self.uc_refresh_metrics.execute()
+            
+            # RefreshMetrics retorna un int (puede ser 0 legítimo)
+            # Si llegamos aquí sin exception, es éxito
+            if count is not None:
+                # Éxito: resetear streak y actualizar UI
+                self.backend_fail_streak = 0
+                self.counter_panel.show_connection_status(is_connected=True)
+                self.counter_panel.set_count(count)
+            else:
+                # Si execute() retorna None explícitamente, contarlo como fallo
+                raise ValueError("Backend returned None")
+                
+        except Exception:
+            # Fallo: incrementar streak
+            self.backend_fail_streak += 1
+            
+            # Solo mostrar error después de 3 fallos consecutivos
+            if self.backend_fail_streak >= 3:
+                backend_url = f"{StreamConfig.BACKEND_BASE_URL}/api/metrics"
+                self.counter_panel.show_connection_status(
+                    is_connected=False,
+                    message=f"⚠️ Verifica {backend_url}"
+                )
+    
+    def closeEvent(self, event):
+        """Limpia recursos al cerrar la ventana."""
+        self.stop_stream()
+        self.metrics_timer.stop()
+        event.accept()

@@ -25,9 +25,11 @@ class FastApiClient(BackendClient):
 
     def get_metrics(self) -> dict:
         try:
-            response = requests.get(f"{self.base_url}/api/metrics", timeout=2)
+            response = requests.get(f"{self.base_url}/api/metrics", timeout=0.5)  # ⚡ 500ms en vez de 2s
             if response.status_code == 200:
                 return response.json()
-        except Exception as e:
-            print(f"Error fetching metrics: {e}")
+        except requests.Timeout:
+            pass  # Silencioso, el UI ya muestra indicador
+        except Exception:
+            pass
         return {}
