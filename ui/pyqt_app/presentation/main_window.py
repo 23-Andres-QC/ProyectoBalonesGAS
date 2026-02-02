@@ -32,7 +32,12 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sistema de Conteo de Balones - Costa Gas")
-        self.resize(1200, 800)  # Ventana más grande por defecto
+        
+        # Tamaño inicial razonable (NO mínimo)
+        self.resize(1200, 700)
+        
+        # NO establecer minimum size (causa loop)
+        # self.setMinimumSize(...)  # ❌ REMOVIDO
 
         # Dependencies for metrics (keep existing API client)
         self.client = FastApiClient(base_url=StreamConfig.BACKEND_BASE_URL)
@@ -130,7 +135,8 @@ class MainWindow(QMainWindow):
         
         if self.current_thread:
             try:
-                if self.current_thread.isRunning():
+                # Verificar si existe antes de acceder
+                if hasattr(self.current_thread, 'isRunning') and self.current_thread.isRunning():
                     self.current_thread.quit()
                     self.current_thread.wait(2000)  # Esperar máximo 2 segundos
             except RuntimeError:
@@ -198,13 +204,14 @@ class MainWindow(QMainWindow):
         """
         Enviar nuevo valor de línea Y al backend de forma asíncrona (no bloquea UI).
         """
-        # Si hay un thread anterior corriendo, no hacer nada (evita saturar)
+        # Si hay un thread anterior corriendo, esperar a que termine
         if self.line_y_thread is not None:
             try:
-                if self.line_y_thread.isRunning():
-                    return
+                # Verificar si existe antes de acceder
+                if hasattr(self.line_y_thread, 'isRunning') and self.line_y_thread.isRunning():
+                    return  # No crear otro thread si ya hay uno corriendo
             except RuntimeError:
-                # Thread ya fue eliminado por deleteLater, es OK continuar
+                # Thread ya fue eliminado, continuar
                 pass
         
         # Crear worker y thread para el request HTTP

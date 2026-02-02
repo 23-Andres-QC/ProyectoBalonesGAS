@@ -116,7 +116,7 @@ class VideoPanel(QWidget):
         """Reescala el último frame cuando cambia el tamaño de la ventana."""
         super().resizeEvent(event)
         
-        # Si hay un frame guardado, reescalarlo
+        # Si hay un frame guardado, reescalarlo SIN cambiar minimum size
         if self._last_pixmap and not self._last_pixmap.isNull():
             scaled = self._last_pixmap.scaled(
                 self.video_display.size(),
