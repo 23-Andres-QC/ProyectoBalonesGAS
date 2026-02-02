@@ -40,11 +40,16 @@ class VideoPanel(QWidget):
         self.label_title.setMaximumHeight(20)
         self.layout.addWidget(self.label_title)
         
-        # Display de video - sin altura mínima fija para que se expanda
+        # Display de video con tamaño inicial fijo
         self.video_display = QLabel("🔌 Esperando conexión...")
         self.video_display.setAlignment(Qt.AlignCenter)
         self.video_display.setStyleSheet(self.STYLE_NORMAL)
         self.video_display.setWordWrap(True)
+        
+        # Tamaño inicial fijo razonable (640x480 - VGA standard)
+        self.video_display.setMinimumSize(640, 480)
+        
+        # Permitir expansión para fullscreen
         self.video_display.setSizePolicy(
             self.video_display.sizePolicy().Expanding,
             self.video_display.sizePolicy().Expanding
@@ -69,7 +74,7 @@ class VideoPanel(QWidget):
             # Guardar el frame original
             self._last_pixmap = pixmap
             
-            # Escalar y mostrar
+            # Escalar y mostrar (NO cambiar minimum size)
             scaled = pixmap.scaled(
                 self.video_display.size(),
                 Qt.KeepAspectRatio,
