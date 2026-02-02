@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout
-from PyQt5.QtCore import QTimer, QThread
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal, QObject
 from PyQt5.QtGui import QPixmap
 
 from pyqt_app.presentation.widgets.video_panel import VideoPanel
@@ -11,6 +11,21 @@ from pyqt_app.application.use_cases.refresh_metrics import RefreshMetrics
 from pyqt_app.application.use_cases.switch_view import SwitchView
 from pyqt_app.infrastructure.api.fastapi_client import FastApiClient
 from pyqt_app.infrastructure.config import StreamConfig
+
+
+class LineYWorker(QObject):
+    """Worker para enviar line_y al backend sin bloquear la UI."""
+    finished = pyqtSignal()
+    
+    def __init__(self, client: FastApiClient, line_y: int):
+        super().__init__()
+        self.client = client
+        self.line_y = line_y
+    
+    def run(self):
+        """Ejecutar request HTTP en thread separado."""
+        self.client.set_line_y(self.line_y)
+        self.finished.emit()
 
 
 class MainWindow(QMainWindow):
@@ -31,6 +46,10 @@ class MainWindow(QMainWindow):
         
         # Backend failure tracking
         self.backend_fail_streak = 0
+        
+        # Line Y update thread
+        self.line_y_thread = None
+        self.line_y_worker = None
 
         # UI Components
         self.central_widget = QWidget()
@@ -173,11 +192,35 @@ class MainWindow(QMainWindow):
                 )
 
     def on_line_y_changed(self, value: int):
-        """Enviar nuevo valor de línea al backend (PUT /api/line_y)."""
-        self.client.set_line_y(value)
+        """
+        Enviar nuevo valor de línea Y al backend de forma asíncrona (no bloquea UI).
+        """
+        # Si hay un thread anterior corriendo, no hacer nada (evita saturar)
+        if self.line_y_thread and self.line_y_thread.isRunning():
+            return
+        
+        # Crear worker y thread para el request HTTP
+        self.line_y_worker = LineYWorker(self.client, value)
+        self.line_y_thread = QThread()
+        
+        self.line_y_worker.moveToThread(self.line_y_thread)
+        
+        # Conectar signals
+        self.line_y_worker.finished.connect(self.line_y_thread.quit)
+        self.line_y_worker.finished.connect(self.line_y_worker.deleteLater)
+        self.line_y_thread.finished.connect(self.line_y_thread.deleteLater)
+        
+        self.line_y_thread.started.connect(self.line_y_worker.run)
+        self.line_y_thread.start()
     
     def closeEvent(self, event):
         """Limpia recursos al cerrar la ventana."""
         self.stop_stream()
         self.metrics_timer.stop()
+        
+        # Esperar a que termine el thread de line_y si está corriendo
+        if self.line_y_thread and self.line_y_thread.isRunning():
+            self.line_y_thread.quit()
+            self.line_y_thread.wait(1000)
+        
         event.accept()
