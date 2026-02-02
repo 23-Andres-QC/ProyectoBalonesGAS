@@ -196,8 +196,13 @@ class MainWindow(QMainWindow):
         Enviar nuevo valor de línea Y al backend de forma asíncrona (no bloquea UI).
         """
         # Si hay un thread anterior corriendo, no hacer nada (evita saturar)
-        if self.line_y_thread and self.line_y_thread.isRunning():
-            return
+        if self.line_y_thread is not None:
+            try:
+                if self.line_y_thread.isRunning():
+                    return
+            except RuntimeError:
+                # Thread ya fue eliminado por deleteLater, es OK continuar
+                pass
         
         # Crear worker y thread para el request HTTP
         self.line_y_worker = LineYWorker(self.client, value)
@@ -209,9 +214,15 @@ class MainWindow(QMainWindow):
         self.line_y_worker.finished.connect(self.line_y_thread.quit)
         self.line_y_worker.finished.connect(self.line_y_worker.deleteLater)
         self.line_y_thread.finished.connect(self.line_y_thread.deleteLater)
+        self.line_y_thread.finished.connect(self._on_line_y_thread_finished)
         
         self.line_y_thread.started.connect(self.line_y_worker.run)
         self.line_y_thread.start()
+    
+    def _on_line_y_thread_finished(self):
+        """Limpia las referencias cuando el thread termina."""
+        self.line_y_thread = None
+        self.line_y_worker = None
     
     def closeEvent(self, event):
         """Limpia recursos al cerrar la ventana."""
@@ -219,8 +230,13 @@ class MainWindow(QMainWindow):
         self.metrics_timer.stop()
         
         # Esperar a que termine el thread de line_y si está corriendo
-        if self.line_y_thread and self.line_y_thread.isRunning():
-            self.line_y_thread.quit()
-            self.line_y_thread.wait(1000)
+        if self.line_y_thread is not None:
+            try:
+                if self.line_y_thread.isRunning():
+                    self.line_y_thread.quit()
+                    self.line_y_thread.wait(1000)
+            except RuntimeError:
+                # Thread ya fue eliminado, es OK
+                pass
         
         event.accept()
