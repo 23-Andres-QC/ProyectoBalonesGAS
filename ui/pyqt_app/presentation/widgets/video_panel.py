@@ -13,35 +13,43 @@ class VideoPanel(QWidget):
     STYLE_NORMAL = (
         "background-color: black; "
         "color: white; "
-        "min-height: 480px; "
         "font-size: 16px; "
-        "padding: 20px;"
+        "padding: 10px;"
     )
     
     STYLE_ERROR = (
         "background-color: #1a1a1a; "
         "color: #ff6b6b; "
-        "min-height: 480px; "
         "font-size: 16px; "
-        "padding: 20px; "
+        "padding: 10px; "
         "border: 2px solid #ff6b6b; "
-        "border-radius: 10px;"
+        "border-radius: 5px;"
     )
     
     def __init__(self, title: str = "Video"):
         super().__init__()
         self.layout = QVBoxLayout()
+        self.layout.setSpacing(2)
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
         
+        # Título más compacto
         self.label_title = QLabel(title)
         self.label_title.setAlignment(Qt.AlignCenter)
+        self.label_title.setStyleSheet("font-size: 12px; font-weight: bold; color: #666; padding: 2px;")
+        self.label_title.setMaximumHeight(20)
         self.layout.addWidget(self.label_title)
         
+        # Display de video - sin altura mínima fija para que se expanda
         self.video_display = QLabel("🔌 Esperando conexión...")
         self.video_display.setAlignment(Qt.AlignCenter)
         self.video_display.setStyleSheet(self.STYLE_NORMAL)
         self.video_display.setWordWrap(True)
-        self.layout.addWidget(self.video_display)
+        self.video_display.setSizePolicy(
+            self.video_display.sizePolicy().Expanding,
+            self.video_display.sizePolicy().Expanding
+        )
+        self.layout.addWidget(self.video_display, 1)  # stretch=1 para expandirse
         
         # Guardar último frame para reescalado
         self._last_pixmap = None

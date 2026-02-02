@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sistema de Conteo de Balones - Costa Gas")
-        self.resize(800, 600)
+        self.resize(1200, 800)  # Ventana más grande por defecto
 
         # Dependencies for metrics (keep existing API client)
         self.client = FastApiClient(base_url=StreamConfig.BACKEND_BASE_URL)
@@ -55,22 +55,25 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
+        self.main_layout.setSpacing(5)  # Reducir espacio entre elementos
+        self.main_layout.setContentsMargins(5, 5, 5, 5)  # Márgenes pequeños
 
-        # Tabs for Raw/Processed
+        # Tabs for Raw/Processed (compacto en la parte superior)
         self.tabs = QTabWidget()
         self.tabs.addTab(QWidget(), "Bruto")
         self.tabs.addTab(QWidget(), "Procesado")
         self.tabs.currentChanged.connect(self.on_tab_changed)
-        self.main_layout.addWidget(self.tabs)
+        self.tabs.setMaximumHeight(40)  # Limitar altura de tabs
+        self.main_layout.addWidget(self.tabs, 0)  # stretch=0 (no se expande)
 
-        # Video Panel
+        # Video Panel - ESTE DEBE EXPANDIRSE
         self.video_panel = VideoPanel("Vista de Cámara")
-        self.main_layout.addWidget(self.video_panel)
+        self.main_layout.addWidget(self.video_panel, 100)  # stretch=100 (máxima expansión)
 
-        # Counter Panel (with line control)
+        # Counter Panel (compacto en la parte inferior)
         self.counter_panel = CounterPanel()
         self.counter_panel.line_y_changed.connect(self.on_line_y_changed)
-        self.main_layout.addWidget(self.counter_panel)
+        self.main_layout.addWidget(self.counter_panel, 0)  # stretch=0 (no se expande)
 
         # Timer for metrics only (streaming handles frames)
         self.metrics_timer = QTimer()

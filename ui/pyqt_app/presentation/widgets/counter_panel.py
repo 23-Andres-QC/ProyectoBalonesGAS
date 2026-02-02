@@ -9,79 +9,101 @@ class CounterPanel(QWidget):
     line_y_changed = pyqtSignal(int)
 
     # Estilos constantes
-    DEFAULT_INFO_STYLE = "font-size: 11px; color: #666;"
-    ERROR_INFO_STYLE = "font-size: 11px; color: #ff6b6b;"
+    DEFAULT_INFO_STYLE = "font-size: 10px; color: #666;"
+    ERROR_INFO_STYLE = "font-size: 10px; color: #ff6b6b;"
 
     def __init__(self):
         super().__init__()
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(5, 5, 5, 5)
+        self.layout.setSpacing(5)
         self.setLayout(self.layout)
+        self.setMaximumHeight(150)  # Limitar altura del panel
 
         # Frame for styling
         self.frame = QFrame()
         self.frame.setFrameShape(QFrame.StyledPanel)
-        self.frame.setStyleSheet("background-color: #f0f0f0; border-radius: 10px; padding: 10px;")
+        self.frame.setStyleSheet("background-color: #f0f0f0; border-radius: 5px; padding: 5px;")
 
         frame_layout = QVBoxLayout()
+        frame_layout.setSpacing(3)
         self.frame.setLayout(frame_layout)
 
-        # Title with status indicator
+        # Contenedor horizontal: Título + Contador + Controles
+        main_horizontal = QHBoxLayout()
+        main_horizontal.setSpacing(20)
+
+        # ==== COLUMNA IZQUIERDA: Título con status ====
+        left_column = QVBoxLayout()
+        left_column.setSpacing(2)
+        
         title_layout = QHBoxLayout()
-
         self.label_title = QLabel("Conteo de Balones")
-        self.label_title.setAlignment(Qt.AlignCenter)
-        self.label_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #333;")
-
+        self.label_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #333;")
+        
         self.status_indicator = QLabel("🟢")
-        self.status_indicator.setStyleSheet("font-size: 14px;")
+        self.status_indicator.setStyleSheet("font-size: 12px;")
         self.status_indicator.setToolTip("Backend API conectado")
-
-        title_layout.addStretch()
+        
         title_layout.addWidget(self.label_title)
         title_layout.addWidget(self.status_indicator)
         title_layout.addStretch()
+        
+        left_column.addLayout(title_layout)
+        
+        # Info label
+        self.info_label = QLabel("")
+        self.info_label.setStyleSheet(self.DEFAULT_INFO_STYLE)
+        left_column.addWidget(self.info_label)
+        
+        main_horizontal.addLayout(left_column, 2)
 
-        frame_layout.addLayout(title_layout)
-
-        # Counter label
+        # ==== COLUMNA CENTRAL: Contador (destacado) ====
+        counter_layout = QVBoxLayout()
+        counter_layout.setAlignment(Qt.AlignCenter)
+        
         self.counter_label = QLabel("0")
         self.counter_label.setAlignment(Qt.AlignCenter)
-        self.counter_label.setStyleSheet("font-size: 48px; font-weight: bold; color: #0078d7;")
-        frame_layout.addWidget(self.counter_label)
+        self.counter_label.setStyleSheet("font-size: 36px; font-weight: bold; color: #0078d7;")
+        counter_layout.addWidget(self.counter_label)
+        
+        main_horizontal.addLayout(counter_layout, 1)
 
-        # TextField + Button para ajustar línea Y
-        line_layout = QHBoxLayout()
+        # ==== COLUMNA DERECHA: Control de Línea Y ====
+        line_control = QHBoxLayout()
+        line_control.setSpacing(5)
         
         self.line_label = QLabel("Línea Y:")
-        self.line_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        self.line_label.setStyleSheet("font-size: 12px; font-weight: bold;")
         
         self.line_input = QLineEdit()
         self.line_input.setText("479")
-        self.line_input.setValidator(QIntValidator(0, 2000))  # Solo números 0-2000
-        self.line_input.setMaximumWidth(80)
+        self.line_input.setValidator(QIntValidator(0, 2000))
+        self.line_input.setMaximumWidth(60)
         self.line_input.setStyleSheet("""
             QLineEdit {
-                font-size: 14px;
-                padding: 5px;
+                font-size: 12px;
+                padding: 3px;
                 border: 2px solid #ccc;
-                border-radius: 5px;
+                border-radius: 3px;
             }
             QLineEdit:focus {
                 border: 2px solid #0078d7;
             }
         """)
-        self.line_input.returnPressed.connect(self._on_update_button_clicked)  # Enter también actualiza
+        self.line_input.returnPressed.connect(self._on_update_button_clicked)
         
         self.update_button = QPushButton("Actualizar")
+        self.update_button.setMaximumWidth(80)
         self.update_button.setStyleSheet("""
             QPushButton {
                 background-color: #0078d7;
                 color: white;
-                font-size: 14px;
+                font-size: 11px;
                 font-weight: bold;
-                padding: 5px 15px;
+                padding: 4px 8px;
                 border: none;
-                border-radius: 5px;
+                border-radius: 3px;
             }
             QPushButton:hover {
                 background-color: #005a9e;
@@ -92,19 +114,14 @@ class CounterPanel(QWidget):
         """)
         self.update_button.clicked.connect(self._on_update_button_clicked)
         
-        line_layout.addWidget(self.line_label)
-        line_layout.addWidget(self.line_input)
-        line_layout.addWidget(self.update_button)
-        line_layout.addStretch()
+        line_control.addWidget(self.line_label)
+        line_control.addWidget(self.line_input)
+        line_control.addWidget(self.update_button)
+        line_control.addStretch()
         
-        frame_layout.addLayout(line_layout)
+        main_horizontal.addLayout(line_control, 2)
 
-        # Info label for backend status
-        self.info_label = QLabel("")
-        self.info_label.setAlignment(Qt.AlignCenter)
-        self.info_label.setStyleSheet(self.DEFAULT_INFO_STYLE)
-        frame_layout.addWidget(self.info_label)
-
+        frame_layout.addLayout(main_horizontal)
         self.layout.addWidget(self.frame)
 
     def set_count(self, count: int):
@@ -125,10 +142,10 @@ class CounterPanel(QWidget):
         if not text:
             self.line_input.setStyleSheet("""
                 QLineEdit {
-                    font-size: 14px;
-                    padding: 5px;
+                    font-size: 12px;
+                    padding: 3px;
                     border: 2px solid #ff6b6b;
-                    border-radius: 5px;
+                    border-radius: 3px;
                 }
             """)
             return
@@ -140,40 +157,39 @@ class CounterPanel(QWidget):
             if value < 0 or value > 2000:
                 self.line_input.setStyleSheet("""
                     QLineEdit {
-                        font-size: 14px;
-                        padding: 5px;
+                        font-size: 12px;
+                        padding: 3px;
                         border: 2px solid #ff6b6b;
-                        border-radius: 5px;
+                        border-radius: 3px;
                     }
                 """)
                 return
             
-            # Resetear estilo a normal
+            # Resetear estilo a normal con borde verde
             self.line_input.setStyleSheet("""
                 QLineEdit {
-                    font-size: 14px;
-                    padding: 5px;
+                    font-size: 12px;
+                    padding: 3px;
                     border: 2px solid #28a745;
-                    border-radius: 5px;
+                    border-radius: 3px;
                 }
             """)
             
             # Emitir signal al backend
             self.line_y_changed.emit(value)
             
-            # Feedback visual temporal (verde por 1 segundo)
+            # Feedback visual temporal (verde → gris después de 1 seg)
             from PyQt5.QtCore import QTimer
             QTimer.singleShot(1000, lambda: self.line_input.setStyleSheet("""
                 QLineEdit {
-                    font-size: 14px;
-                    padding: 5px;
+                    font-size: 12px;
+                    padding: 3px;
                     border: 2px solid #ccc;
-                    border-radius: 5px;
+                    border-radius: 3px;
                 }
             """))
             
         except ValueError:
-            # Esto no debería pasar por el QIntValidator, pero por si acaso
             pass
     
     def show_connection_status(self, is_connected: bool, message: str = ""):
