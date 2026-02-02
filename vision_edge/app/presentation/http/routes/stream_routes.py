@@ -55,7 +55,7 @@ def create_stream_router(frame_store: FrameStore, settings: Settings) -> APIRout
                 yield (
                     b"--frame\r\n"
                     b"Content-Type: image/jpeg\r\n"
-                    f"Content-Length: {len(jpeg_bytes)}\r\n\r\n".encode()
+                    b"Content-Length: " + str(len(jpeg_bytes)).encode() + b"\r\n\r\n"
                     + jpeg_bytes
                     + b"\r\n"
                 )
