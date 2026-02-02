@@ -48,8 +48,9 @@ class MainWindow(QMainWindow):
         self.video_panel = VideoPanel("Vista de Cámara")
         self.main_layout.addWidget(self.video_panel)
 
-        # Counter Panel
+        # Counter Panel (with line control)
         self.counter_panel = CounterPanel()
+        self.counter_panel.line_y_changed.connect(self.on_line_y_changed)
         self.main_layout.addWidget(self.counter_panel)
 
         # Timer for metrics only (streaming handles frames)
@@ -170,6 +171,10 @@ class MainWindow(QMainWindow):
                     is_connected=False,
                     message=f"⚠️ Verifica {backend_url}"
                 )
+
+    def on_line_y_changed(self, value: int):
+        """Enviar nuevo valor de línea al backend (PUT /api/line_y)."""
+        self.client.set_line_y(value)
     
     def closeEvent(self, event):
         """Limpia recursos al cerrar la ventana."""

@@ -332,8 +332,8 @@ def run_service(settings) -> None:
     )
     from app.infrastructure.stores.in_memory_frame_store import InMemoryFrameStore
     from app.infrastructure.stores.in_memory_metrics_store import InMemoryMetricsStore
-    # Note: ByteTrackTracker not implemented yet
-    # from app.infrastructure.tracking.bytetrack_tracker import ByteTrackTracker
+    from app.infrastructure.stores.line_config_store import LineConfig
+    from app.infrastructure.tracking.bytetrack_tracker import ByteTrackTracker
     from app.presentation.http.app_factory import create_app
     
     print("=" * 50)
@@ -352,6 +352,7 @@ def run_service(settings) -> None:
     # Initialize stores
     frame_store = InMemoryFrameStore()
     metrics_store = InMemoryMetricsStore()
+    line_config = LineConfig(settings.line_y)
     
     # Create FastAPI app (HU-VIS-07: pass settings for stream_fps)
     app = create_app(
@@ -360,6 +361,7 @@ def run_service(settings) -> None:
         frame_store=frame_store,
         metrics_store=metrics_store,
         settings=settings,
+        line_config=line_config,
     )
     
     # Initialize pipeline components
@@ -375,8 +377,7 @@ def run_service(settings) -> None:
         conf_thres=settings.conf_thres,
     )
     
-    # Note: ByteTrackTracker not implemented yet (raises NotImplementedError)
-    # tracker = ByteTrackTracker()
+    tracker = ByteTrackTracker()
     
     counter = VisibleWindowCounter(
         window=settings.count_window,
@@ -402,7 +403,8 @@ def run_service(settings) -> None:
         renderer=renderer,
         frame_store=frame_store,
         metrics_store=metrics_store,
-        tracker=None,  # Tracker not implemented yet (ByteTrackTracker raises NotImplementedError)
+        tracker=tracker,
+        line_config=line_config,
         line_y=settings.line_y,
         line_thickness=settings.line_thickness,
         line_text_scale=settings.line_text_scale,

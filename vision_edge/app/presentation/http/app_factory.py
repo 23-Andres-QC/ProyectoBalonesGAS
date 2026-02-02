@@ -6,10 +6,12 @@ from fastapi import FastAPI
 from app.application.ports.frame_store import FrameStore
 from app.application.ports.metrics_store import MetricsStore
 from app.infrastructure.config.settings import Settings
+from app.infrastructure.stores.line_config_store import LineConfig
 from app.presentation.http.routes.frame_routes import create_frame_router
 from app.presentation.http.routes.health_routes import create_health_router
 from app.presentation.http.routes.metrics_routes import create_metrics_router
 from app.presentation.http.routes.stream_routes import create_stream_router
+from app.presentation.http.routes.line_config_routes import create_line_config_router
 
 
 def create_app(
@@ -18,6 +20,7 @@ def create_app(
     frame_store: FrameStore,
     metrics_store: MetricsStore,
     settings: Settings,
+    line_config: LineConfig,
 ) -> FastAPI:
     """
     Create FastAPI application with all routes.
@@ -41,6 +44,7 @@ def create_app(
     # Register routers
     app.include_router(create_health_router(service_name, version))
     app.include_router(create_metrics_router(metrics_store))
+    app.include_router(create_line_config_router(line_config))
     app.include_router(create_frame_router(frame_store))
     app.include_router(create_stream_router(frame_store, settings))  # HU-VIS-07
     

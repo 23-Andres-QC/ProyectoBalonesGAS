@@ -91,10 +91,18 @@ class SupervisionOverlayRenderer(Renderer):
                 scene=processed,
                 detections=detections,
             )
-            
+			
             # Draw labels if enabled
             if self._label_annotator is not None:
-                labels = [f"obj_{i}" for i in range(len(detections))]
+                labels = None
+                # Intentar usar nombre de clase real si viene del detector (data["class_name"])
+                if hasattr(detections, "data") and "class_name" in getattr(detections, "data", {}):
+                    class_names = detections.data["class_name"]
+                    # Asegurar que sea una lista de str
+                    labels = [str(name) for name in class_names]
+                else:
+                    # Fallback: labels genéricos
+                    labels = [f"obj_{i}" for i in range(len(detections))]
                 processed = self._label_annotator.annotate(
                     scene=processed,
                     detections=detections,
@@ -200,8 +208,8 @@ class SupervisionOverlayRenderer(Renderer):
         )
         
         # Draw small text labels on the line
-        in_text = f"IN: {line_counts['line_in']}"
-        out_text = f"OUT: {line_counts['line_out']}"
+        in_text = f"IN: {line_info['line_in']}"
+        out_text = f"OUT: {line_info['line_out']}"
         
         # Left side: IN count
         cv2.putText(

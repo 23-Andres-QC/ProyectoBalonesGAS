@@ -35,7 +35,7 @@ class Settings:
 
 def get_settings() -> Settings:
 	return Settings(
-		rtsp_url=os.getenv("RTSP_URL", "rtsp://admin:admin@192.168.1.100:554/stream1"),
+		rtsp_url=os.getenv("RTSP_URL", "rtsp://192.168.1.10:554/user=admin&password=Dudu123r&channel=1&stream=0.sdp"),
 		rtsp_reconnect_sec=float(os.getenv("RTSP_RECONNECT_SEC", "2.0")),
 		rtsp_max_fails_before_reopen=int(os.getenv("RTSP_MAX_FAILS_BEFORE_REOPEN", "10")),
 		rtsp_open_timeout_sec=float(os.getenv("RTSP_OPEN_TIMEOUT_SEC", "5.0")),

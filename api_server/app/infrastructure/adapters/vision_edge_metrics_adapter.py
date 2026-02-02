@@ -45,10 +45,12 @@ class VisionEdgeMetricsAdapter:
             response.raise_for_status()
             
             data = response.json()
-            
+			
             # Map vision_edge response to backend contract
+            # UI "count" debe representar cuántos balones ENTRAN por la línea.
+            # Priorizar line_in; si no existe, caer a line_total y luego a stable_count.
             return {
-                "count": data.get("stable_count", data.get("count", 0)),
+                "count": data.get("line_in", data.get("line_total", data.get("stable_count", data.get("count", 0)))),
                 "fps": data.get("fps", 0.0),
                 "status": data.get("status", "live"),
                 "last_update": data.get("last_update", data.get("last_update_utc", self._get_current_utc_iso())),

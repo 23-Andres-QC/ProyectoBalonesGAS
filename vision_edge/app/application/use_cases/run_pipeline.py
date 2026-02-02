@@ -13,6 +13,7 @@ from app.application.ports.frame_store import FrameStore
 from app.application.ports.metrics_store import MetricsStore
 from app.application.ports.renderer import Renderer
 from app.application.ports.tracker import Tracker
+from app.infrastructure.stores.line_config_store import LineConfig
 
 
 @dataclass
@@ -30,6 +31,7 @@ class RunPipeline:
     frame_store: FrameStore
     metrics_store: MetricsStore
     tracker: Tracker | None = None
+    line_config: LineConfig | None = None
     jpeg_quality: int = 80
     sleep_sec: float = 0.033  # ~30 FPS
     max_consecutive_fails: int = 50
@@ -82,7 +84,9 @@ class RunPipeline:
                 # Initialize/reinitialize LineZone if frame size changed (HU-VIS-06v)
                 frame_h, frame_w = frame.shape[:2]
                 if (frame_w, frame_h) != last_frame_shape:
-                    line_y_clamped = max(0, min(self.line_y, frame_h - 1))
+                    # Read current line_y from shared config if available
+                    current_line_y = self.line_config.get_line_y() if self.line_config else self.line_y
+                    line_y_clamped = max(0, min(current_line_y, frame_h - 1))
                     line_zone = sv.LineZone(
                         start=sv.Point(x=0, y=line_y_clamped),
                         end=sv.Point(x=frame_w - 1, y=line_y_clamped),
@@ -118,8 +122,9 @@ class RunPipeline:
                         line_total = line_in + line_out
                 
                 # Render (pass line info for overlay)
+                current_line_y = self.line_config.get_line_y() if self.line_config else self.line_y
                 line_info = {
-                    "line_y": self.line_y,
+                    "line_y": current_line_y,
                     "line_in": line_in,
                     "line_out": line_out,
                     "line_total": line_total,
